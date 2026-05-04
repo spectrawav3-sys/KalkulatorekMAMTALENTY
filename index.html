@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Kalkulator</title>
+    <style>
+        body { background-color: #000; color: #fff; font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: flex-end; height: 100vh; margin: 0; overflow: hidden; -webkit-user-select: none; touch-action: manipulation; }
+        .calc { width: 100%; max-width: 400px; padding: 20px; padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box; }
+        
+        #display-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        #display-container::-webkit-scrollbar { display: none; }
+
+        #display { 
+            font-size: 85px; 
+            font-weight: 300;
+            text-align: right; 
+            white-space: nowrap; 
+            padding: 10px;
+            letter-spacing: -1px;
+            min-height: 105px;
+            transition: font-size 0.1s ease-out;
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        button { background: #333; border: none; border-radius: 50%; color: white; font-size: 32px; aspect-ratio: 1; cursor: pointer; display: flex; justify-content: center; align-items: center; -webkit-tap-highlight-color: transparent; }
+        button:active { background-color: #737373; }
+        .orange { background: #ff9f0a; }
+        .orange:active { background-color: #fbc28d; }
+        .gray { background: #a5a5a5; color: black; }
+        .zero { grid-column: span 2; aspect-ratio: auto; border-radius: 50px; justify-content: flex-start; padding-left: 35px; }
+    </style>
+</head>
+<body>
+    <div class="calc">
+        <div id="display-container">
+            <div id="display">0</div>
+        </div>
+        <div class="grid">
+            <button class="gray" onclick="reset()">AC</button>
+            <button class="gray">+/-</button>
+            <button class="gray">%</button>
+            <button class="orange" onclick="press('/')">÷</button>
+            <button onclick="press('7')">7</button>
+            <button onclick="press('8')">8</button>
+            <button onclick="press('9')">9</button>
+            <button class="orange" onclick="press('*')">×</button>
+            <button onclick="press('4')">4</button>
+            <button onclick="press('5')">5</button>
+            <button onclick="press('6')">6</button>
+            <button class="orange" onclick="press('-')">−</button>
+            <button onclick="press('1')">1</button>
+            <button onclick="press('2')">2</button>
+            <button onclick="press('3')">3</button>
+            <button class="orange" onclick="activateMagic()">+</button>
+            <button class="zero" onclick="press('0')">0</button>
+            <button onclick="press('.')">,</button>
+            <button class="orange" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+    <script>
+        let currentInput = "";
+        let magicString = "";
+        let magicIndex = 0;
+        let magicMode = false;
+
+        function formatWithSpaces(str) {
+            if (!str) return "0";
+            return str.split(/([+\-*/×÷])/).map(part => {
+                if (part && !isNaN(part.replace(',', '.'))) {
+                    let cleanPart = part.replace(/\s/g, '');
+                    return cleanPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+                }
+                return part.replace('*', '×').replace('/', '÷');
+            }).join('');
+        }
+
+        function updateDisplay() {
+            const display = document.getElementById('display');
+            const container = document.getElementById('display-container');
+            display.innerText = formatWithSpaces(currentInput);
+            
+            // LOGIKA SKALOWANIA:
+            // Najpierw ustawiamy bazowe 85px
+            display.style.fontSize = "85px";
+            
+            // Jeśli się nie mieści, zmniejszamy do 70px
+            if (display.scrollWidth > display.clientWidth) {
+                display.style.fontSize = "70px";
+            }
+            
+            // Jeśli przy 70px nadal się nie mieści, zostaje 70px i włącza się scroll
+            setTimeout(() => {
+                container.scrollLeft = container.scrollWidth;
+            }, 10);
+        }
+
+        function press(val) {
+            if (magicMode && !isNaN(val)) {
+                if (magicIndex < magicString.length) {
+                    currentInput += magicString[magicIndex];
+                    magicIndex++;
+                }
+            } else {
+                currentInput += val;
+            }
+            updateDisplay();
+        }
+
+        function activateMagic() {
+            try {
+                let evalInput = currentInput.replace(/\s/g, '').replace(/,/g, '.');
+                let currentVal = eval(evalInput);
+                let now = new Date();
+                let targetStr = now.getDate().toString().padStart(2, '0') + 
+                                (now.getMonth() + 1).toString().padStart(2, '0') + 
+                                now.getHours().toString().padStart(2, '0') + 
+                                now.getMinutes().toString().padStart(2, '0');
+                
+                let diff = parseInt(targetStr) - currentVal;
+                magicString = diff.toString();
+                magicMode = true;
+                magicIndex = 0;
+                currentInput += "+";
+                updateDisplay();
+            } catch(e) { reset(); }
+        }
+
+        function calculate() {
+            let now = new Date();
+            let d = now.getDate().toString().padStart(2, '0');
+            let m = (now.getMonth() + 1).toString().padStart(2, '0');
+            let h = now.getHours().toString().padStart(2, '0');
+            let min = now.getMinutes().toString().padStart(2, '0');
+            
+            currentInput = d + m + h + min;
+            updateDisplay();
+            magicMode = false;
+        }
+
+        function reset() {
+            currentInput = "";
+            magicMode = false;
+            updateDisplay();
+        }
+    </script>
+</body>
+</html>
